@@ -4,7 +4,7 @@ from .models import Finance
 from .serializer import FinanceSerializer
 from django.http import HttpResponse
 from rest_framework.permissions import IsAuthenticated
-
+from django.db import models
 # Create your views here.
 
 def finance(request):
@@ -49,5 +49,23 @@ def finance_detail(request, id):
     elif request.method == 'DELETE':
         finance.soft_delete()
         return Response({'message': 'Finance deleted successfully'})
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def total_income(request):
+    total_income = Finance.objects.filter(
+        created_by=request.user,
+        type='income'
+        ).aggregate(total=models.Sum('amount'))['total'] or 0
+    return Response({'total_income': total_income})
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def total_expense(request):
+    total_expense = Finance.objects.filter(
+        created_by=request.user,
+        type='expense'
+        ).aggregate(total=models.Sum('amount'))['total'] or 0
+    return Response({'total_expense': total_expense})
 
 

@@ -13,7 +13,7 @@ def finance(request):
 @api_view(['GET', 'POST'])
 @permission_classes([IsAuthenticated])
 def finance_list(request):
-    print(f"User: {request.user}")
+    print(f"User: {request.user}") # Debugging statement to check the authenticated user
     if request.method == 'GET':
         finance = Finance.objects.filter(created_by=request.user)
         serializer = FinanceSerializer(finance, many=True)

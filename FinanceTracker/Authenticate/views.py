@@ -29,7 +29,7 @@ def LoginView(request):
         username = request.data.get('username')
         password = request.data.get('password')
         user = authenticate(username=username, password=password)
-        print(f"Authenticated user: {user}")
+        print(f"Authenticated user: {user}") # Debugging statement to check the authenticated user
         if user is not None:
             token, created = Token.objects.get_or_create(user=user)
             return Response({'message': 'Login successful', 'token': token.key})

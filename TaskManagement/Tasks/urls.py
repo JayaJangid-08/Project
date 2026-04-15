@@ -2,10 +2,19 @@ from django.urls import path
 from . import views
 
 urlpatterns = [
-    path('tasks/', views.task_list, name='task_list'),
-    path('project/<int:id>/', views.task_detail, name='task_detail'),
-    path('project/<int:id>/add-member/', views.add_member, name='add_member'),
-    path('project/<int:id>/remove-member/', views.remove_member, name='remove_member'),
-    path('project/<int:id>/update-status/', views.update_status, name='update_status'),
-    path('project/<int:id>/priority/', views.update_priority, name='update_priority'),
+    path('', views.home, name='home'),
+    # Projects
+    path('projects/', views.project_list, name='project_list'),
+    path('projects/<int:project_id>/', views.project_detail, name='project_detail'),
+    path('projects/<int:project_id>/members/add/', views.add_member, name='add_member'),
+    path('projects/<int:project_id>/members/remove/', views.remove_member, name='remove_member'),
+
+    # Tasks
+    path('projects/<int:project_id>/tasks/', views.task_list, name='task_list'), # It'll print all the tasks available in that particular 'project_id'
+    path('projects/<int:project_id>/tasks/<int:task_id>/', views.task_detail, name='task_detail'), # It'll print specific task available in that particular 'project_id' and 'task_id'
+
+    # Comments
+    path('projects/<int:project_id>/tasks/<int:task_id>/comments/', views.comment_list, name='comment_list'),
 ]
+
+

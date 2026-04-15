@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import Task , Project
+from .models import Task , Project , Comment
 
 class TaskSerializer(serializers.ModelSerializer):
     class Meta:
@@ -13,3 +13,9 @@ class ProjectSerializer(serializers.ModelSerializer):
         # fields = '__all__'
         fields = ['id','name','description','members','created_by','status','start_date','end_date','created_at','updated_at']
         read_only_fields = ['created_by' , 'created_at' , 'id']  # id bhi read only hona chahiye
+
+class CommentSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Comment
+        # fields = '__all__'
+        fields = ['task','author','content']

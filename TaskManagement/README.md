@@ -98,7 +98,7 @@ There are two apps in TaskManagement API :-
 ##  Setup Instructions
 
 ```bash
-# Clone the repo ''
+# Clone the repo 'https://github.com/JayaJangid-08/Project.git'
 git clone 
 
 # Navigate to project

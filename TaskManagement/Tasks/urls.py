@@ -10,8 +10,10 @@ urlpatterns = [
     path('projects/<int:project_id>/members/remove/', views.remove_member, name='remove_member'),
 
     # Tasks
-    path('projects/<int:project_id>/tasks/', views.task_list, name='task_list'), # It'll print all the tasks available in that particular 'project_id'
-    path('projects/<int:project_id>/tasks/<int:task_id>/', views.task_detail, name='task_detail'), # It'll print specific task available in that particular 'project_id' and 'task_id'
+    # It'll print all the tasks available in that particular 'project_id'
+    path('projects/<int:project_id>/tasks/', views.task_list, name='task_list'), 
+    # It'll print specific task available in that particular 'project_id' and 'task_id'
+    path('projects/<int:project_id>/tasks/<int:task_id>/', views.task_detail, name='task_detail'),
 
     # Comments
     path('projects/<int:project_id>/tasks/<int:task_id>/comments/', views.comment_list, name='comment_list'),

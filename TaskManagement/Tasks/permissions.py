@@ -4,13 +4,15 @@ class IsAdmin(BasePermission):
     def has_permission(self, request, view):
         return request.user.is_authenticated and request.user.role == 'admin'
 
-# class IsManager(BasePermission):
-#     def has_permission(self, request, view):
-#         return request.user.is_authenticated and request.user.role == 'manager'
+'''
+class IsManager(BasePermission):
+    def has_permission(self, request, view):
+        return request.user.is_authenticated and request.user.role == 'manager'
     
-# class IsMember(BasePermission):
-#     def has_permission(self, request, view):
-#         return request.user.is_authenticated and request.user.role == 'member'
+class IsMember(BasePermission):
+    def has_permission(self, request, view):
+        return request.user.is_authenticated and request.user.role == 'member'
+'''
 
 class CanComment(BasePermission):
     """

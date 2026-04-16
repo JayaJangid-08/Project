@@ -2,9 +2,14 @@
 
 A Django REST Framework based API to manage projects, tasks, and comments with role-based access control.
 
-There are two apps in TaskManagement API :- <br>
-        i) **Authenticate** :- In this App, I've added signup , login and token refresh URLs.<br>
-       ii) **Tasks** :- In this App, I've added project and tasks detail URLs.<br>
+There are two apps in TaskManagement API :-  
+
+- **i) Authenticate** :-
+  In this App, I've added signup , login and token refresh URLs.
+      
+- **ii) Tasks** :- 
+  In this App, I've added project and tasks detail URLs.  
+
 
 ---
 

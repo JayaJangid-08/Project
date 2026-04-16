@@ -238,3 +238,4 @@ def comment_list(request, project_id, task_id):
         comment = Comment.objects.create(task=task, author=request.user, content=content)
         return Response({'message': 'Comment added', 'id': comment.id})
 
+

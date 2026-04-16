@@ -1,4 +1,7 @@
+from urllib import request
+
 from django.http import HttpResponse
+from django.tasks import task
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
@@ -6,12 +9,14 @@ from rest_framework.response import Response
 from .serializers import ProjectSerializer, TaskSerializer, CommentSerializer
 from .models import Task , Project , Comment
 from Authenticate.models import User
+from .permissions import IsAdmin , CanComment , IsProjectOwnerOrAdmin , CanAccessTask
 # from .permissions import
 
 # Create your views here.
 
 def home(request):
     return HttpResponse("Welcome to the Task Management System")
+
 
 @api_view(['GET', 'POST'])
 @permission_classes([IsAuthenticated])
@@ -26,7 +31,8 @@ def project_list(request):
         return Response(serializer.data)
     
     elif request.method == 'POST':
-        if request.user.role not in ['admin', 'manager']:
+        permission = IsProjectOwnerOrAdmin()
+        if not permission.has_permission(request , None):
             return Response({'message': 'Permission denied'})
         
         print(f"Request data: {request.data}")
@@ -38,6 +44,7 @@ def project_list(request):
         
         return Response(serializer.errors)
     
+
 @api_view(['GET', 'PUT', 'DELETE'])
 @permission_classes([IsAuthenticated])
 def project_detail(request, project_id):
@@ -46,15 +53,18 @@ def project_detail(request, project_id):
     except Project.DoesNotExist:
         return Response({'message': 'Project not found'})
     
-    if request.user not in project.members.all() and request.user != project.created_by:
-        return Response({'message': 'Access denied'})
+    is_admin = IsAdmin()
+    if not is_admin.has_permission(request , None):
+        if request.user not in project.members.all() and request.user != project.created_by:
+            return Response({'message': 'Access denied'})
 
     if request.method == 'GET':
         serializer = ProjectSerializer(project)
         return Response(serializer.data)
     
     elif request.method == 'PUT':
-        if request.user.role not in ['admin', 'manager']:
+        permission = IsProjectOwnerOrAdmin()
+        if not permission.has_object_permission(request , None):
             return Response({'message': 'Permission denied'})
         
         serializer = ProjectSerializer(project, data=request.data)
@@ -64,9 +74,13 @@ def project_detail(request, project_id):
         
         return Response(serializer.errors)
     
-    # elif request.method == 'DELETE':
-    #     project.delete()
-    #     return Response({'message': 'Project deleted successfully'})
+    elif request.method == 'DELETE':
+        permission = IsAdmin()
+        if permission.has_permission(request , None):
+            return Response({'message' : 'Only admin can delete projects.'})
+        project.delete()
+        return Response({'message': 'Project deleted successfully'})
+
 
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
@@ -77,7 +91,8 @@ def add_member(request, project_id):
         return Response({'message': 'Project not found'})
     
     # only creator can add members
-    if request.user != project.created_by :
+    permission = IsProjectOwnerOrAdmin()
+    if not permission.has_object_permission(request , None):
         return Response({'message': 'Access denied'})
     
     try:
@@ -93,6 +108,7 @@ def add_member(request, project_id):
     project.members.add(user)
     return Response({'message': 'Member added successfully'})
 
+
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
 def remove_member(request, project_id):
@@ -102,7 +118,8 @@ def remove_member(request, project_id):
         return Response({'message': 'Project not found'})
     
     # only creator can remove members
-    if request.user != project.created_by:
+    permission = IsProjectOwnerOrAdmin()
+    if request.user != project.created_by or not permission.has_permission(request , None , project) :
         return Response({'message': 'Access denied'})
     
     try:
@@ -111,9 +128,13 @@ def remove_member(request, project_id):
     except User.DoesNotExist:
         return Response({'message': 'User not found'})
     
+    if user not in project.member.all():
+        return Response({'message' : 'User is not a member of this project.'})
+
     project.members.remove(user)
     return Response({'message': 'Member removed successfully'})
-    
+
+
 @api_view(['GET', 'POST'])
 @permission_classes([IsAuthenticated])
 def task_list(request, project_id):
@@ -121,53 +142,76 @@ def task_list(request, project_id):
         project = Project.objects.get(id=project_id)
     except Project.DoesNotExist:
         return Response({'message': 'Project not found'})
-    
+
     if request.method == 'GET':
-        tasks = Task.objects.filter(project=project)
+        role = request.user.role
+        if role == 'admin':
+            tasks = Task.objects.filter(project=project)
+        elif role == 'manager':
+            # Manager can only see tasks in projects they created
+            if project.created_by != request.user:
+                return Response({'message': 'Access denied'})
+            tasks = Task.objects.filter(project=project)
+        else:
+            # Member sees only their own assigned tasks
+            tasks = Task.objects.filter(project=project, assigned_to=request.user)
+
         serializer = TaskSerializer(tasks, many=True)
         return Response(serializer.data)
-    
+
     elif request.method == 'POST':
-        if request.user.role not in ['admin', 'manager']:
-            return Response({'message': 'Only admin and manager can create tasks'})
+        # Only admin and manager can create tasks
+        permission = IsProjectOwnerOrAdmin()
+        if not permission.has_permission(request, None):
+            return Response({'message': 'Only admin or manager can create tasks'})
+
+        # Manager can only create tasks in their own projects
+        project_permission = IsProjectOwnerOrAdmin()
+        if not project_permission.has_object_permission(request, None, project):
+            return Response({'message': 'Managers can only create tasks in their own projects'})
 
         serializer = TaskSerializer(data=request.data)
         if serializer.is_valid():
             serializer.save(created_by=request.user, project=project)
             return Response(serializer.data)
-        
+
         return Response(serializer.errors)
+
 
 @api_view(['GET', 'PUT', 'DELETE'])
 @permission_classes([IsAuthenticated])
 def task_detail(request, project_id, task_id):
     try:
-        task = Task.objects.get(id=task_id, project_id=project_id)
+        task = Task.objects.select_related('project').get(id=task_id, project_id=project_id)
     except Task.DoesNotExist:
         return Response({'message': 'Task not found'})
+
+    # Gate all methods through CanAccessTask first
+    access = CanAccessTask()
+    if not access.has_object_permission(request, None, task):
+        return Response({'message': 'Access denied'})
 
     if request.method == 'GET':
         serializer = TaskSerializer(task)
         return Response(serializer.data)
-    
-    elif request.method == 'PUT':
-        # member can only update status and priority
-        if request.user != task.assigned_to and request.user.role not in ['admin', 'manager']:
-            return Response({'message': 'Access denied'})
 
+    elif request.method == 'PUT':
         serializer = TaskSerializer(task, data=request.data)
         if serializer.is_valid():
             serializer.save()
             return Response(serializer.data)
-        
+
         return Response(serializer.errors)
-    
+
     elif request.method == 'DELETE':
-        if request.user.role != 'admin':
-            return Response({'message': 'Only admin can delete task'})
-        
+        # Only admin can delete tasks
+        permission = IsAdmin()
+        if not permission.has_permission(request, None):
+            return Response({'message': 'Only admin can delete tasks'})
+
         task.delete()
         return Response({'message': 'Task deleted successfully'})
+
 
 @api_view(['GET', 'POST'])
 @permission_classes([IsAuthenticated])
@@ -175,7 +219,11 @@ def comment_list(request, project_id, task_id):
     try:
         task = Task.objects.select_related('project').get(id=task_id, project_id=project_id)
     except Task.DoesNotExist:
-        return Response({'message': 'Task not found'}, status=404)
+        return Response({'message': 'Task not found'})
+
+    permission = CanComment()
+    if not permission.has_object_permission(request, None, task):
+        return Response({'message': 'Access denied'})
 
     if request.method == 'GET':
         comments = Comment.objects.filter(task=task).select_related('author')
@@ -183,22 +231,10 @@ def comment_list(request, project_id, task_id):
         return Response(serializer.data)
 
     elif request.method == 'POST':
-        user = request.user
-        role = user.role
-        project = task.project
+        content = request.data.get('content')
+        if not content:
+            return Response({'message' : 'Content required.'})
+        
+        comment = Comment.objects.create(task=task, author=request.user, content=content)
+        return Response({'message': 'Comment added', 'id': comment.id})
 
-        is_admin = role == 'admin'
-        is_manager = role == 'manager' and (
-            project.created_by == user or
-            project.members.filter(id=user.id).exists()
-        )
-        is_assigned = task.assigned_to.filter(id=user.id).exists()
-
-        if is_admin or is_manager or is_assigned:
-            content = request.data.get('content')
-            if not content:
-                return Response({'message': 'Content required'})
-            comment = Comment.objects.create(task=task, author=user, content=content)
-            return Response({'message': 'Comment added', 'id': comment.id})
-
-    return Response({'message': 'Access denied'})

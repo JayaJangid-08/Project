@@ -6,7 +6,7 @@ from Authenticate.models import User
 class Project(models.Model):
     TYPE_CHOICE = [
         ('active','Active'),
-        ('on_hold','On Hold'),
+        ('on hold','On Hold'),
         ('completed','Completed'),
     ]
     name = models.CharField(max_length=255)

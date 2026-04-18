@@ -1,18 +1,33 @@
-from urllib import request
-
 from django.http import HttpResponse
 from django.tasks import task
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
+from rest_framework.pagination import PageNumberPagination
+from rest_framework.filters import OrderingFilter, SearchFilter
 
 from .serializers import ProjectSerializer, TaskSerializer, CommentSerializer
 from .models import Task , Project , Comment
 from Authenticate.models import User
 from .permissions import IsAdmin , CanComment , IsProjectOwnerOrAdmin , CanAccessTask
+from .filters import ProjectFilter, TaskFilter , CommentFilter
 # from .permissions import
 
 # Create your views here.
+
+_ordering = OrderingFilter()
+
+class OrderConfig:
+    def __init__(self, fields, default=None):
+        self.ordering_fields = fields
+        self.ordering = default
+
+_search = SearchFilter
+
+class SearchConfig:
+    def __init__(self, fields, default=None):
+        self.search_fields = fields
+
 
 def home(request):
     return HttpResponse("Welcome to the Task Management System")
@@ -27,8 +42,18 @@ def project_list(request):
         else:
             projects = Project.objects.filter(created_by=request.user)
 
-        serializer = ProjectSerializer(projects, many=True)
-        return Response(serializer.data)
+        filterset = ProjectFilter(request.GET, queryset=projects)
+        if not filterset.is_valid():
+            return Response({'message': 'Invalid filter parameters', 'errors': filterset.errors})
+        projects = filterset.qs
+        pagigator = PageNumberPagination()
+        pagigator.page_size = 5         #Ek Page pr 5 projects show krne k liye
+        pagigator_projects = pagigator.paginate_queryset(projects, request)
+        serializer = ProjectSerializer(pagigator_projects, many=True)
+        return pagigator.get_paginated_response(serializer.data)
+    
+        # serializer = ProjectSerializer(projects, many=True)
+        # return Response(serializer.data)
     
     elif request.method == 'POST':
         permission = IsProjectOwnerOrAdmin()
@@ -64,7 +89,7 @@ def project_detail(request, project_id):
     
     elif request.method == 'PUT':
         permission = IsProjectOwnerOrAdmin()
-        if not permission.has_object_permission(request , None):
+        if not permission.has_object_permission(request , None , project):
             return Response({'message': 'Permission denied'})
         
         serializer = ProjectSerializer(project, data=request.data)
@@ -76,7 +101,7 @@ def project_detail(request, project_id):
     
     elif request.method == 'DELETE':
         permission = IsAdmin()
-        if permission.has_permission(request , None):
+        if not permission.has_permission(request , None):
             return Response({'message' : 'Only admin can delete projects.'})
         project.delete()
         return Response({'message': 'Project deleted successfully'})
@@ -92,7 +117,7 @@ def add_member(request, project_id):
     
     # only creator can add members
     permission = IsProjectOwnerOrAdmin()
-    if not permission.has_object_permission(request , None):
+    if not permission.has_object_permission(request , None, project):
         return Response({'message': 'Access denied'})
     
     try:
@@ -119,7 +144,7 @@ def remove_member(request, project_id):
     
     # only creator can remove members
     permission = IsProjectOwnerOrAdmin()
-    if request.user != project.created_by or not permission.has_permission(request , None , project) :
+    if not permission.has_object_permission(request , None, project):
         return Response({'message': 'Access denied'})
     
     try:
@@ -128,7 +153,7 @@ def remove_member(request, project_id):
     except User.DoesNotExist:
         return Response({'message': 'User not found'})
     
-    if user not in project.member.all():
+    if user not in project.members.all():
         return Response({'message' : 'User is not a member of this project.'})
 
     project.members.remove(user)
@@ -155,9 +180,18 @@ def task_list(request, project_id):
         else:
             # Member sees only their own assigned tasks
             tasks = Task.objects.filter(project=project, assigned_to=request.user)
+        filterset = TaskFilter(request.GET, queryset=tasks)
+        if not filterset.is_valid():
+            return Response({'message': 'Invalid filter parameters', 'errors': filterset.errors})
+        tasks = filterset.qs
+        paginator = PageNumberPagination()
+        paginator.page_size = 5         #Ek Page pr 5 tasks show krne k liye
+        paginator_tasks = paginator.paginate_queryset(tasks, request)
+        serializer = TaskSerializer(paginator_tasks, many=True)
+        return paginator.get_paginated_response(serializer.data)
 
-        serializer = TaskSerializer(tasks, many=True)
-        return Response(serializer.data)
+        # serializer = TaskSerializer(tasks, many=True)
+        # return Response(serializer.data)
 
     elif request.method == 'POST':
         # Only admin and manager can create tasks
@@ -227,8 +261,18 @@ def comment_list(request, project_id, task_id):
 
     if request.method == 'GET':
         comments = Comment.objects.filter(task=task).select_related('author')
-        serializer = CommentSerializer(comments, many=True)
-        return Response(serializer.data)
+        filterset = CommentFilter(request.GET, queryset=comments)
+        if not filterset.is_valid():
+            return Response({'message': 'Invalid filter parameters', 'errors': filterset.errors})
+        comments = filterset.qs
+        paginator = PageNumberPagination()
+        paginator.page_size = 5         #Ek Page pr 5 comments show krne k liye
+        paginated_comments = paginator.paginate_queryset(comments, request)
+        serializer = CommentSerializer(paginated_comments, many=True)
+        return paginator.get_paginated_response(serializer.data)
+    
+        # serializer = CommentSerializer(comments, many=True)
+        # return Response(serializer.data)
 
     elif request.method == 'POST':
         content = request.data.get('content')

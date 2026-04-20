@@ -22,6 +22,8 @@ There are two apps in TaskManagement API :-
 -  Comment System
 -  Due Date Tracking
 -  Task Status & Priority
+-  Pagination , Filtering.
+-  Searching & Sorting.
 
 ---
 

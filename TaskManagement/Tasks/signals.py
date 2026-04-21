@@ -15,5 +15,5 @@ def send_email_on_assignment(sender, instance, action, pk_set, **kwargs):
             send_task_assignment_email(
                 assigned_to= user,
                 task= instance,
-                assigned_by= instance.created_by,                
+                assigned_by= instance.created_by, 
             )

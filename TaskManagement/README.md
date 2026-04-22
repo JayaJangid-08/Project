@@ -15,15 +15,16 @@ There are two apps in TaskManagement API :-
 
 ##  Features
 
--  Authentication (Signup, Login, Token)
--  Role-based access (Admin, Manager, Member)
--  Project Management
--  Task Assignment (single/multiple users)
--  Comment System
--  Due Date Tracking
+-  Authentication (Signup, Login, Token).
+-  Role-based access (Admin, Manager, Member).
+-  Project Management.
+-  Task Assignment (single/multiple users).
+-  Comment System.
+-  Due Date Tracking.
 -  Task Status & Priority
 -  Pagination , Filtering.
 -  Searching & Sorting.
+-  Send E-Mail.
 
 ---
 

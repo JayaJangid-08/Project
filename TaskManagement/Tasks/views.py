@@ -46,11 +46,11 @@ def project_list(request):
         if not filterset.is_valid():
             return Response({'message': 'Invalid filter parameters', 'errors': filterset.errors})
         projects = filterset.qs
-        pagigator = PageNumberPagination()
-        pagigator.page_size = 5         #Ek Page pr 5 projects show krne k liye
-        pagigator_projects = pagigator.paginate_queryset(projects, request)
-        serializer = ProjectSerializer(pagigator_projects, many=True)
-        return pagigator.get_paginated_response(serializer.data)
+        paginator = PageNumberPagination()
+        paginator.page_size = 5         #Ek Page pr 5 projects show krne k liye
+        paginator_projects = paginator.paginate_queryset(projects, request)
+        serializer = ProjectSerializer(paginator_projects, many=True)
+        return paginator.get_paginated_response(serializer.data)
     
         # serializer = ProjectSerializer(projects, many=True)
         # return Response(serializer.data)
